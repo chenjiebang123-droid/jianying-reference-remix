@@ -1,0 +1,4 @@
+interface:
+  display_name: "参考视频裂变与剪映工程"
+  short_description: "分析参考片并匹配完整动作素材，生成三版差异化剪映草稿及核验记录"
+  default_prompt: "使用 $jianying-reference-remix 分析参考视频，为每条制作三个素材组合不同、单稿无重复且动作完整的剪映工程。"
