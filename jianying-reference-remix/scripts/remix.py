@@ -144,7 +144,25 @@ def load_plan(path: Path, ffprobe: str, probe_fn=None) -> tuple[dict, list[dict]
             cursor += length_us
         if not shots:
             raise ValueError(f"Project {name} has no shots")
-        prepared.append({**project, "shots": shots, "duration_us": cursor})
+        prepared_project = {**project, "shots": shots, "duration_us": cursor}
+        captions = project.get("narration_captions", [])
+        if captions and not project.get("narration"):
+            raise ValueError("Narration captions require a narration audio file")
+        if project.get("narration"):
+            audio_path = resolve(path.parent, project["narration"])
+            if not audio_path.is_file():
+                raise ValueError(f"Missing narration: {audio_path}")
+            audio_duration = float(media_probe(audio_path)["duration"])
+            if not math.isfinite(audio_duration) or audio_duration <= 0 or audio_duration > cursor/1e6+0.001:
+                raise ValueError("Narration exceeds the video timeline or has invalid duration; revise the edit or script")
+            previous_end = 0.0
+            for caption in captions:
+                start, end = float(caption["start"]), float(caption["end"])
+                if not all(math.isfinite(x) for x in (start, end)) or not 0 <= start < end <= audio_duration+0.001 or start < previous_end-1e-6 or not isinstance(caption.get("text"), str) or not caption["text"].strip():
+                    raise ValueError("Invalid, overlapping or out-of-range narration captions")
+                previous_end = end
+            prepared_project["narration"] = str(audio_path)
+        prepared.append(prepared_project)
     if not prepared:
         raise ValueError("Plan has no projects")
     return plan, prepared
@@ -186,13 +204,13 @@ def build(plan_path: Path, output: Path, draft_root: Path, ffprobe: str) -> None
             if shot.get("text"):
                 project.add_text_simple(shot["text"], start_time=f"{shot['target_start_us']/1e6}s",
                                         duration=f"{max(1,shot['target_duration_us']-12000)/1e6}s", track_name="Copy",
-                                        clip_settings=draft.ClipSettings(transform_y=-0.7))
+                                        clip_settings=draft.ClipSettings(transform_y=0.65 if item.get("narration_captions") else -0.7))
             manifest.append({"project": item["name"], "role": shot["role"], "source": shot["source"],
                              "source_start": start_us/1e6, "source_end": end_us/1e6,
                              "target_start": shot["target_start_us"]/1e6, "target_duration": shot["target_duration_us"]/1e6,
                              "speed": seg.speed.speed, "action_notes": shot["action_notes"]})
         audio_coverage = {}
-        for field, track, volume in [("reference_audio", "Reference_Audio", 0.0), ("music", "Music", 0.6)]:
+        for field, track, volume in [("reference_audio", "Reference_Audio", 0.0), ("music", "Music", 0.6), ("narration", "Narration", 1.0)]:
             if item.get(field):
                 path = resolve(plan_path.parent, item[field])
                 length = min(probe(path, ffprobe)["duration"], item["duration_us"]/1e6)
@@ -201,12 +219,18 @@ def build(plan_path: Path, output: Path, draft_root: Path, ffprobe: str) -> None
                     raise RuntimeError(f"Audio import failed: {path}")
                 audio.volume = volume
                 audio_coverage[field] = length
+        for caption in item.get("narration_captions", []):
+            start_us, end_us = round(float(caption["start"])*1e6), round(float(caption["end"])*1e6)
+            project.add_text_simple(caption["text"], start_time=f"{start_us/1e6}s",
+                                    duration=f"{max(1,end_us-start_us-1000)/1e6}s", track_name="Narration_Captions",
+                                    clip_settings=draft.ClipSettings(transform_y=-0.7))
         result = project.save()
         folder = Path(result["draft_path"])
         shutil.copytree(folder, output/"projects"/item["name"])
         records.append({"name": item["name"], "reference": item.get("reference"), "variant": item.get("variant"),
                         "draft_path": str(folder), "duration": item["duration_us"]/1e6, "notes": item.get("notes", ""),
                         "audio_coverage": audio_coverage, "music_complete": audio_coverage.get("music",0)+0.01 >= item["duration_us"]/1e6,
+                        "narration_disclosure": item.get("narration_disclosure"),
                         "mp4_exported": False, "editor_open_tested": False})
         dump(output/"projects-index.json", records)
     with (output/"asset-manifest.csv").open("w", encoding="utf-8-sig", newline="") as handle:
@@ -247,6 +271,12 @@ def verify(output: Path) -> dict:
                 media_duration = material.get("duration")
                 if media_duration and window.get("start",0)+window.get("duration",0)>media_duration+2000: issues.append("source_window_out_of_bounds")
             if not clips: issues.append("no_video")
+            for audio in data.get("materials", {}).get("audios", []):
+                if audio.get("path") and not Path(audio["path"]).is_file():
+                    issues.append("missing_audio_source")
+            if record.get("audio_coverage", {}).get("narration"):
+                if not any(t.get("name") == "Narration" and t.get("segments") for t in data.get("tracks", [])):
+                    issues.append("missing_narration_track")
         results.append({"name":record["name"],"video_segments":count,"issues":issues})
     result = {"ok":bool(results) and not missing_projects and all(not x["issues"] for x in results), "projects":results,
               "missing_projects": missing_projects,

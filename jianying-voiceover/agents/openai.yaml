@@ -1,0 +1,4 @@
+interface:
+  display_name: "视频配音与剪映字幕"
+  short_description: "按确认文案生成多语言配音，测量真实时长并接入剪映独立音轨和字幕轨"
+  default_prompt: "使用 $jianying-voiceover 为我的视频生成自然配音和分段字幕，再接入剪映工程计划。"

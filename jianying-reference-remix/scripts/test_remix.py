@@ -46,6 +46,19 @@ class ReviewedPlanTests(unittest.TestCase):
         self.assertEqual(project["duration_us"], 6666666)
         self.assertEqual(first["source_start"], 0.2)
 
+    def test_narration_must_fit_and_captions_must_not_overlap(self):
+        (self.root/"voice.wav").touch()
+        path = self.root/"plan.json"
+        project = {"name":"narrated", "narration":"voice.wav", "shots":[self.shot(target_duration=3)]}
+        path.write_text(json.dumps({"projects":[project]}), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "Narration exceeds"):
+            remix.load_plan(path, "unused", probe_fn=lambda _: {"duration":4.0})
+        project["shots"][0]["target_duration"] = 4
+        project["narration_captions"] = [{"start":0,"end":2,"text":"One"},{"start":1,"end":3,"text":"Two"}]
+        path.write_text(json.dumps({"projects":[project]}), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "overlapping"):
+            remix.load_plan(path, "unused", probe_fn=lambda _: {"duration":4.0})
+
 
 if __name__ == "__main__":
     unittest.main()

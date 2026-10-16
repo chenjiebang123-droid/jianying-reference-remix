@@ -34,6 +34,8 @@ python <skill>/scripts/remix.py verify --output <delivery>
 
 Resolve the actual Python/FFmpeg installation instead of assuming the creator's machine paths. Use `--ffmpeg` and `--ffprobe` when needed. Do not install or upgrade global dependencies merely to run a job.
 
+For requested narration, use the companion `jianying-voiceover` skill in this repository. It generates or assembles measured audio and segment captions, then adds `narration` and `narration_captions` to a new reviewed plan. The builder places them on independent tracks, rejects narration longer than the video, and moves visual copy above spoken captions to avoid occupying the same area. Check the actual layout in the editor.
+
 ## Delivery
 
 Deliver a per-reference analysis, reviewed shot plan, original copy, source manifest, project index, draft backups and QA results. Keep the source media unchanged. Identify draft-only delivery separately from exported and visually checked MP4s. Existing output names are rejected by the builder; choose a new job/output name for another run.

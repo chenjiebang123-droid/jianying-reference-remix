@@ -21,3 +21,15 @@ Python 3.10+、FFmpeg、FFprobe 用于分析。生成工程还需单独安装 `j
 输出包含分析证据、审看后的计划、素材清单、工程索引、工程备份和核验结果。视频素材通过原始路径引用，移动素材后需要重新链接。FFmpeg 的切点与 BPM 是候选估计；代理仍须审看完整动作和语义。工程结构通过验证不代表最终画面已验收；音乐、配音、剪映打开测试及 MP4 导出状态须在交付中说明。
 
 仓库仅包含通用工作流与工具，不包含用户视频、客户报告、个人路径、账号凭据或旧工程。
+
+## 配音技能
+
+仓库另含 `jianying-voiceover`：按确认文案生成中文、巴西葡语、英语等语言配音，输出 WAV、按实测片段时间生成的 SRT 和配音清单，也支持用户已有的 PCM WAV 录音。将该文件夹复制到个人 skills 目录后，可使用：
+
+```text
+使用 $jianying-voiceover 为这条视频生成巴西葡语配音和分段字幕，并接入剪映工程。
+```
+
+在线生成依赖单独安装的 `speech` skill、OpenAI Python SDK 和本机 `OPENAI_API_KEY` 环境变量；密钥不要写入仓库或聊天。默认内置音色 cedar，支持在脚本中调整音色、语气、语速和停顿。配音为 AI 生成。无密钥时可先 `--dry-run` 检查请求，或用 `assemble` 拼接已有录音。
+
+配音脚本格式见 `jianying-voiceover/references/script-format.md`，巴西葡语示例在 `assets/example-pt-BR.json`。`generate` 调用 speech 的批量工具；`assemble` 根据实际音频时长生成字幕；`attach` 将配音接入新版 remix 计划。超过时长预算的配音会保留完整语句并标记需调整，未解决的超时不能直接接入工程。最终发音与画面同步仍需核听。

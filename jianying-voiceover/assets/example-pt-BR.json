@@ -1,0 +1,10 @@
+{
+  "language": "pt-BR",
+  "voice": "cedar",
+  "speed": 1.0,
+  "instructions": "Tone: clear and friendly. Pacing: steady.",
+  "segments": [
+    {"text": "Veja esta etapa da rotina.", "pause_after": 0.15},
+    {"text": "Confira os detalhes do produto.", "pause_after": 0}
+  ]
+}
